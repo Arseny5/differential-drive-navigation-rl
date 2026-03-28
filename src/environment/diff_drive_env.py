@@ -252,23 +252,23 @@ class DiffDriveEnv(gym.Env):
         ox, oy = world_to_screen(0, 0)
         obs_r = int(self.obstacle_radius * scale)
         pygame.draw.circle(surf, col_obs_fill, (ox, oy), obs_r)
-        pygame.draw.circle(surf, col_obs_edge, (ox, oy), obs_r, 2)
+        pygame.draw.circle(surf, col_obs_edge, (ox, oy), obs_r, 3)
 
         gx, gy = world_to_screen(self._goal[0], self._goal[1])
-        goal_r = max(4, int(self.goal_radius * scale))
+        goal_r = max(12, int(self.goal_radius * scale))
         pygame.draw.circle(surf, col_goal, (gx, gy), goal_r)
 
         if len(self._trajectory) > 1:
             points = [world_to_screen(p[0], p[1]) for p in self._trajectory]
-            pygame.draw.lines(surf, col_traj, False, points, 2)
+            pygame.draw.lines(surf, col_traj, False, points, 7)
 
         x, y, theta = self._state
         ax, ay = world_to_screen(x, y)
-        agent_r = max(4, int(0.3 * scale))
+        agent_r = max(14, int(0.8 * scale))
         pygame.draw.circle(surf, col_agent, (ax, ay), agent_r)
         end_x = ax + int(agent_r * 1.8 * np.cos(-theta))
         end_y = ay + int(agent_r * 1.8 * np.sin(-theta))
-        pygame.draw.line(surf, col_heading, (ax, ay), (end_x, end_y), 2)
+        pygame.draw.line(surf, col_heading, (ax, ay), (end_x, end_y), 4)
 
         if self.render_mode == "human":
             pygame.display.flip()

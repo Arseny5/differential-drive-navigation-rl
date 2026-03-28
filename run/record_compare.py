@@ -65,8 +65,8 @@ def pad_to_length(frames: list, target_len: int):
 def hstack_row(
     frame_lists: list[list[np.ndarray]],
     labels: list[str],
-    gap: int = 4,
-    label_bar: int = 32,
+    gap: int = 8,
+    label_bar: int = 100,
     light: bool = False,
 ) -> np.ndarray:
     """One timestep: concatenate panels left-to-right with optional labels."""
@@ -77,7 +77,7 @@ def hstack_row(
 
     if light:
         bg = (255, 255, 255)
-        text_fill = (30, 30, 30)
+        text_fill = (20, 20, 20)
     else:
         bg = (30, 30, 35)
         text_fill = (240, 240, 240)
@@ -92,15 +92,17 @@ def hstack_row(
         bar = Image.new("RGB", (w, label_bar), bg)
         draw = ImageDraw.Draw(bar)
         try:
-            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 16)
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 64)
         except OSError:
             font = ImageFont.load_default()
         try:
             bbox = draw.textbbox((0, 0), label, font=font)
             tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
         except Exception:
-            tw = len(label) * 8
-        draw.text(((w - tw) / 2, 8), label, fill=text_fill, font=font)
+            tw = len(label) * 22
+            th = 42
+        draw.text(((w - tw) / 2, (label_bar - th) / 2), label, fill=text_fill, font=font)
 
         combined = Image.new("RGB", (w, h + label_bar), bg)
         combined.paste(bar, (0, 0))
