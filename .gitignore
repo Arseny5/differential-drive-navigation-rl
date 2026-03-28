@@ -21,3 +21,6 @@ logs/*/training_history.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Local report draft (not in repo)
+REPORT.md
