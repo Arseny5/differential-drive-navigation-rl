@@ -30,18 +30,19 @@ class DiffDriveEnv(gym.Env):
     def __init__(
         self,
         render_mode: str | None = None,
-        max_steps: int = 300,
+        max_steps: int = 500,
         dt: float = 0.1,
         wheelbase: float = 0.5,
         max_v: float = 2.0,
         obstacle_radius: float = 2.0,
         goal_radius: float = 0.5,
-        collision_radius: float = 0.25,
+        collision_radius: float = 0.0,
         reward_goal: float = 100.0,
         reward_collision: float = -100.0,
         reward_step: float = -0.05,
         progress_scale: float = 5.0,
         spin_penalty: float = 0.01,
+        light_theme: bool = False,
     ):
         super().__init__()
 
@@ -59,9 +60,12 @@ class DiffDriveEnv(gym.Env):
         self.reward_step = reward_step
         self.progress_scale = progress_scale
         self.spin_penalty = spin_penalty
+        self.light_theme = light_theme
+        self.render_screen_size = 600
+        self.render_world_range = 12.0
 
         # obs: [x, y, cos(θ), sin(θ), gx, gy, dist_goal, dist_obstacle]
-        obs_high = np.array([10, 10, 1, 1, 10, 10, 20, 20], dtype=np.float32)
+        obs_high = np.array([10, 10, 1, 1, 10, 10, 25, 25], dtype=np.float32)
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
         self.action_space = spaces.Box(
@@ -79,27 +83,27 @@ class DiffDriveEnv(gym.Env):
         return float(x * x + y * y)
 
     def _sample_agent_pose(self) -> tuple[float, float, float]:
-        """Agent spawn: Q3, x ∈ [-4, -2], y ∈ [-4, -2], outside collision shell."""
+        """Agent spawn: x ∈ [-2, 0], y ∈ [-10, 0], outside collision shell."""
         min_r = self.obstacle_radius + self.collision_radius + 0.05
         min_sq = min_r * min_r
         for _ in range(300):
-            ax = self.np_random.uniform(-4.0, -2.0)
-            ay = self.np_random.uniform(-4.0, -2.0)
+            ax = self.np_random.uniform(-2.0, 0.0)
+            ay = self.np_random.uniform(-10.0, 0.0)
             if self._dist_sq(ax, ay) >= min_sq:
                 atheta = self.np_random.uniform(-np.pi, np.pi)
                 return ax, ay, atheta
-        return -3.0, -3.0, self.np_random.uniform(-np.pi, np.pi)
+        return -2.0, -5.0, self.np_random.uniform(-np.pi, np.pi)
 
     def _sample_goal(self) -> tuple[float, float]:
-        """Goal spawn: Q1, x ∈ [2, 4], y ∈ [2, 4], outside obstacle disk."""
-        r = self.obstacle_radius
-        min_sq = r * r + 1e-3
+        """Goal spawn: x ∈ [0, 2], y ∈ [0, 10], outside obstacle disk + margin."""
+        min_r = self.obstacle_radius + 0.3
+        min_sq = min_r * min_r
         for _ in range(300):
-            gx = self.np_random.uniform(2.0, 4.0)
-            gy = self.np_random.uniform(2.0, 4.0)
+            gx = self.np_random.uniform(0.0, 2.0)
+            gy = self.np_random.uniform(0.0, 10.0)
             if self._dist_sq(gx, gy) >= min_sq:
                 return gx, gy
-        return 3.0, 3.0
+        return 2.0, 5.0
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -200,8 +204,8 @@ class DiffDriveEnv(gym.Env):
         except ImportError:
             return None
 
-        screen_size = 600
-        world_range = 8.0
+        screen_size = self.render_screen_size
+        world_range = self.render_world_range
         scale = screen_size / (2 * world_range)
 
         def world_to_screen(wx, wy):
@@ -219,32 +223,52 @@ class DiffDriveEnv(gym.Env):
             self._pygame_clock = pygame.time.Clock()
 
         surf = self._pygame_screen
-        surf.fill((25, 25, 30))
+
+        if self.light_theme:
+            col_bg = (255, 255, 255)
+            col_grid = (215, 215, 220)
+            col_obs_fill = (220, 70, 70)
+            col_obs_edge = (180, 40, 40)
+            col_goal = (30, 180, 80)
+            col_traj = (40, 100, 220)
+            col_agent = (255, 150, 0)
+            col_heading = (40, 40, 40)
+        else:
+            col_bg = (25, 25, 30)
+            col_grid = (40, 40, 45)
+            col_obs_fill = (180, 50, 50)
+            col_obs_edge = (220, 70, 70)
+            col_goal = (50, 220, 100)
+            col_traj = (100, 150, 255)
+            col_agent = (255, 220, 50)
+            col_heading = (255, 255, 255)
+
+        surf.fill(col_bg)
 
         for i in range(-int(world_range), int(world_range) + 1, 2):
-            pygame.draw.line(surf, (40, 40, 45), world_to_screen(i, -world_range), world_to_screen(i, world_range))
-            pygame.draw.line(surf, (40, 40, 45), world_to_screen(-world_range, i), world_to_screen(world_range, i))
+            pygame.draw.line(surf, col_grid, world_to_screen(i, -world_range), world_to_screen(i, world_range))
+            pygame.draw.line(surf, col_grid, world_to_screen(-world_range, i), world_to_screen(world_range, i))
 
         ox, oy = world_to_screen(0, 0)
         obs_r = int(self.obstacle_radius * scale)
-        pygame.draw.circle(surf, (180, 50, 50), (ox, oy), obs_r)
-        pygame.draw.circle(surf, (220, 70, 70), (ox, oy), obs_r, 2)
+        pygame.draw.circle(surf, col_obs_fill, (ox, oy), obs_r)
+        pygame.draw.circle(surf, col_obs_edge, (ox, oy), obs_r, 2)
 
         gx, gy = world_to_screen(self._goal[0], self._goal[1])
         goal_r = max(4, int(self.goal_radius * scale))
-        pygame.draw.circle(surf, (50, 220, 100), (gx, gy), goal_r)
+        pygame.draw.circle(surf, col_goal, (gx, gy), goal_r)
 
         if len(self._trajectory) > 1:
             points = [world_to_screen(p[0], p[1]) for p in self._trajectory]
-            pygame.draw.lines(surf, (100, 150, 255), False, points, 2)
+            pygame.draw.lines(surf, col_traj, False, points, 2)
 
         x, y, theta = self._state
         ax, ay = world_to_screen(x, y)
         agent_r = max(4, int(0.3 * scale))
-        pygame.draw.circle(surf, (255, 220, 50), (ax, ay), agent_r)
+        pygame.draw.circle(surf, col_agent, (ax, ay), agent_r)
         end_x = ax + int(agent_r * 1.8 * np.cos(-theta))
         end_y = ay + int(agent_r * 1.8 * np.sin(-theta))
-        pygame.draw.line(surf, (255, 255, 255), (ax, ay), (end_x, end_y), 2)
+        pygame.draw.line(surf, col_heading, (ax, ay), (end_x, end_y), 2)
 
         if self.render_mode == "human":
             pygame.display.flip()

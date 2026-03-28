@@ -5,13 +5,13 @@ All parameters can be overridden via CLI arguments in run/train.py, run/evaluate
 """
 
 # ── Environment ──────────────────────────────────────────────────────
-MAX_STEPS = 300
+MAX_STEPS = 500
 DT = 0.1
 WHEELBASE = 0.5
 MAX_V = 2.0
 OBSTACLE_RADIUS = 2.0
 GOAL_RADIUS = 0.5
-COLLISION_RADIUS = 0.25
+COLLISION_RADIUS = 0.0
 
 # ── Rewards (aligned with task: reach goal, avoid obstacle, no dithering) ─
 REWARD_GOAL = 100.0
@@ -47,6 +47,7 @@ AC_VALUE_LR = 1e-3
 AC_HIDDEN_DIMS = [128, 128]
 AC_ENTROPY_COEF = 0.02
 AC_GAE_LAMBDA = 0.95
+AC_ROLLOUT_EPISODES = 8
 AC_MAX_GRAD_NORM = 0.5
 
 # ── TRPO ─────────────────────────────────────────────────────────────
@@ -59,7 +60,20 @@ TRPO_BACKTRACK_COEF = 0.5
 TRPO_DAMPING = 0.1
 TRPO_GAE_LAMBDA = 0.95
 TRPO_ENTROPY_COEF = 0.01
+TRPO_ROLLOUT_EPISODES = 8
 TRPO_MAX_GRAD_NORM = 0.5
+
+# ── PPO ──────────────────────────────────────────────────────────────
+PPO_POLICY_LR = 3e-4
+PPO_VALUE_LR = 1e-3
+PPO_HIDDEN_DIMS = [128, 128]
+PPO_ENTROPY_COEF = 0.01
+PPO_GAE_LAMBDA = 0.95
+PPO_CLIP_EPS = 0.2
+PPO_EPOCHS = 4
+PPO_MINI_BATCH_SIZE = 64
+PPO_ROLLOUT_EPISODES = 8
+PPO_MAX_GRAD_NORM = 0.5
 
 # ── Evaluation ───────────────────────────────────────────────────────
 EVAL_NUM_EPISODES = 20

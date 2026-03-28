@@ -14,7 +14,7 @@ class BaseAgent(ABC):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.config = config
-        self.device = torch.device("cpu")
+        self.device = torch.device(config.get("device", "cpu"))
 
     @abstractmethod
     def select_action(self, obs: np.ndarray, training: bool = True) -> tuple[np.ndarray, float, np.ndarray]:

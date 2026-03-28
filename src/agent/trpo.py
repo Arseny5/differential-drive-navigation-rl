@@ -2,6 +2,7 @@
 Trust Region Policy Optimization (TRPO) for continuous control.
 
 Natural gradient via conjugate gradient + line search with KL constraint.
+Accumulates multiple episodes before updating for stable gradient estimates.
 """
 
 import numpy as np
@@ -26,15 +27,14 @@ class TRPOAgent(BaseAgent):
         self.entropy_coef = config.get("entropy_coef", 0.0)
         self.max_action = config.get("max_action", 2.0)
         self.max_grad_norm = config.get("max_grad_norm", 0.5)
+        self.rollout_episodes = config.get("rollout_episodes", 8)
         hidden = config.get("hidden_dims", [128, 128])
 
         self.policy = PolicyNetwork(obs_dim, act_dim, hidden).to(self.device)
         self.value = ValueNetwork(obs_dim, hidden).to(self.device)
         self.value_optimizer = torch.optim.Adam(self.value.parameters(), lr=self.value_lr)
 
-    # ------------------------------------------------------------------
-    # Action selection
-    # ------------------------------------------------------------------
+        self._buffer: list[list[dict]] = []
 
     def select_action(self, obs, training=True):
         obs_t = self._to_tensor(obs).unsqueeze(0)
@@ -115,29 +115,47 @@ class TRPOAgent(BaseAgent):
         return x
 
     # ------------------------------------------------------------------
-    # Update
+    # Update (with multi-episode buffering)
     # ------------------------------------------------------------------
 
     def update(self, transitions):
-        obs_t = self._to_tensor(np.array([t["obs"] for t in transitions]))
-        actions_t = self._to_tensor(np.array([t["action_raw"] for t in transitions]))
-        rewards = [t["reward"] for t in transitions]
-        dones = [float(t["done"]) for t in transitions]
+        self._buffer.append(transitions)
 
-        # GAE
-        with torch.no_grad():
-            values = self.value(obs_t).tolist()
-            if not transitions[-1]["done"]:
-                next_obs = self._to_tensor(transitions[-1]["next_obs"]).unsqueeze(0)
-                next_value = self.value(next_obs).item()
-            else:
-                next_value = 0.0
+        if len(self._buffer) < self.rollout_episodes:
+            return {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0, "kl": 0.0, "step_accepted": 0}
 
-        advantages, returns = self.compute_gae(
-            rewards, values, next_value, dones, self.gamma, self.gae_lambda,
-        )
-        advantages_t = self._to_tensor(advantages)
-        returns_t = self._to_tensor(returns)
+        # Flatten all buffered episodes, computing GAE per-episode
+        all_obs, all_actions, all_advantages, all_returns = [], [], [], []
+
+        for ep_transitions in self._buffer:
+            obs_t = self._to_tensor(np.array([t["obs"] for t in ep_transitions]))
+            actions_t = self._to_tensor(np.array([t["action_raw"] for t in ep_transitions]))
+            rewards = [t["reward"] for t in ep_transitions]
+            dones = [float(t["done"]) for t in ep_transitions]
+
+            with torch.no_grad():
+                values = self.value(obs_t).tolist()
+                if not ep_transitions[-1]["done"]:
+                    next_obs = self._to_tensor(ep_transitions[-1]["next_obs"]).unsqueeze(0)
+                    next_value = self.value(next_obs).item()
+                else:
+                    next_value = 0.0
+
+            advantages, returns = self.compute_gae(
+                rewards, values, next_value, dones, self.gamma, self.gae_lambda,
+            )
+
+            all_obs.append(obs_t)
+            all_actions.append(actions_t)
+            all_advantages.extend(advantages)
+            all_returns.extend(returns)
+
+        self._buffer.clear()
+
+        obs_t = torch.cat(all_obs)
+        actions_t = torch.cat(all_actions)
+        advantages_t = self._to_tensor(all_advantages)
+        returns_t = self._to_tensor(all_returns)
 
         if len(advantages_t) > 1:
             advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
@@ -210,10 +228,6 @@ class TRPOAgent(BaseAgent):
             "kl": kl_val,
             "step_accepted": int(accepted),
         }
-
-    # ------------------------------------------------------------------
-    # Save / Load
-    # ------------------------------------------------------------------
 
     def save(self, path):
         torch.save({

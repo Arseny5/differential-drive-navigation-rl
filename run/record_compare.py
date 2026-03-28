@@ -7,7 +7,8 @@ Usage:
     reinforce:models/reinforce/best_model.pth \\
     reinforce_baseline:models/reinforce_baseline/best_model.pth \\
     actor_critic:models/actor_critic/best_model.pth \\
-    trpo:models/trpo/best_model.pth
+    trpo:models/trpo/best_model.pth \\
+    ppo:models/ppo/best_model.pth
 """
 
 import sys
@@ -65,14 +66,21 @@ def hstack_row(
     frame_lists: list[list[np.ndarray]],
     labels: list[str],
     gap: int = 4,
-    label_bar: int = 28,
-    bg: tuple[int, int, int] = (30, 30, 35),
+    label_bar: int = 32,
+    light: bool = False,
 ) -> np.ndarray:
     """One timestep: concatenate panels left-to-right with optional labels."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:
         raise RuntimeError("pip install Pillow")
+
+    if light:
+        bg = (255, 255, 255)
+        text_fill = (30, 30, 30)
+    else:
+        bg = (30, 30, 35)
+        text_fill = (240, 240, 240)
 
     panels = []
     h_max = 0
@@ -84,15 +92,15 @@ def hstack_row(
         bar = Image.new("RGB", (w, label_bar), bg)
         draw = ImageDraw.Draw(bar)
         try:
-            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 14)
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 16)
         except OSError:
             font = ImageFont.load_default()
         try:
             bbox = draw.textbbox((0, 0), label, font=font)
             tw = bbox[2] - bbox[0]
         except Exception:
-            tw = len(label) * 7
-        draw.text(((w - tw) / 2, 6), label, fill=(240, 240, 240), font=font)
+            tw = len(label) * 8
+        draw.text(((w - tw) / 2, 8), label, fill=text_fill, font=font)
 
         combined = Image.new("RGB", (w, h + label_bar), bg)
         combined.paste(bar, (0, 0))
@@ -114,6 +122,7 @@ def build_comparison_gif(
     out_path: str,
     fps: int,
     gap: int = 4,
+    light: bool = False,
 ):
     try:
         from PIL import Image
@@ -127,7 +136,7 @@ def build_comparison_gif(
     strip_frames = []
     for t in range(T):
         row = [p[t] for p in padded]
-        strip_frames.append(hstack_row([[f] for f in row], labels, gap=gap))
+        strip_frames.append(hstack_row([[f] for f in row], labels, gap=gap, light=light))
 
     images = [Image.fromarray(f) for f in strip_frames]
     images[0].save(
@@ -142,7 +151,7 @@ def main():
         description="Side-by-side GIF: same seed per algorithm (fair comparison).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Example:\n  python run/record_compare.py --seed 7 "
-               "reinforce:models/reinforce/best_model.pth trpo:models/trpo/best_model.pth",
+               "reinforce:models/reinforce/best_model.pth ppo:models/ppo/best_model.pth",
     )
     p.add_argument(
         "specs", nargs="+",
@@ -152,6 +161,9 @@ def main():
     p.add_argument("--max_steps", type=int, default=config.MAX_STEPS)
     p.add_argument("--max_v", type=float, default=config.MAX_V)
     p.add_argument("--fps", type=int, default=15)
+    p.add_argument("--white", action="store_true", help="Use light/white background theme")
+    p.add_argument("--screen_size", type=int, default=600, help="Render panel size in px")
+    p.add_argument("--world_range", type=float, default=12.0, help="Half-extent of the rendered world")
     p.add_argument("--output", type=str, default="gifs/compare_algorithms.gif")
     args = p.parse_args()
 
@@ -164,7 +176,10 @@ def main():
         progress_scale=config.PROGRESS_SCALE,
         spin_penalty=config.SPIN_PENALTY,
         render_mode="rgb_array",
+        light_theme=args.white,
     )
+    env.render_screen_size = args.screen_size
+    env.render_world_range = args.world_range
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.shape[0]
 
@@ -184,7 +199,14 @@ def main():
             agent, env, args.max_steps, args.seed,
         )
         all_frames.append(frames)
-        labels.append(name.replace("_", " "))
+        pretty = {
+            "reinforce": "REINFORCE",
+            "reinforce_baseline": "REINFORCE + Baseline",
+            "actor_critic": "Actor-Critic",
+            "trpo": "TRPO",
+            "ppo": "PPO",
+        }
+        labels.append(pretty.get(name, name.replace("_", " ")))
         st = "ok" if success else "fail"
         stats.append(f"  {name}: reward={reward:.1f}, steps={steps}, {st}")
         print(f"{name}: reward={reward:.1f}, steps={steps}, success={success}")
@@ -197,7 +219,7 @@ def main():
 
     print("---")
     print("\n".join(stats))
-    build_comparison_gif(all_frames, labels, args.output, fps=args.fps)
+    build_comparison_gif(all_frames, labels, args.output, fps=args.fps, light=args.white)
     print("Done.")
 
 

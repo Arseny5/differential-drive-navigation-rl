@@ -55,12 +55,18 @@ def parse_args():
     p.add_argument("--cg_iters", type=int, default=None)
     p.add_argument("--damping", type=float, default=None)
 
+    # PPO-specific
+    p.add_argument("--clip_eps", type=float, default=None)
+    p.add_argument("--ppo_epochs", type=int, default=None)
+    p.add_argument("--mini_batch_size", type=int, default=None)
+
     # Paths
     p.add_argument("--log_dir", type=str, default=config.LOG_DIR)
     p.add_argument("--model_save_dir", type=str, default=config.MODEL_SAVE_DIR)
     p.add_argument("--load_model", type=str, default=None)
 
     p.add_argument("--seed", type=int, default=config.SEED)
+    p.add_argument("--device", type=str, default="cpu")
 
     return p.parse_args()
 
@@ -91,6 +97,7 @@ def _build_agent_config(args) -> dict:
             hidden_dims=args.hidden_dims or config.AC_HIDDEN_DIMS,
             entropy_coef=args.entropy_coef if args.entropy_coef is not None else config.AC_ENTROPY_COEF,
             gae_lambda=args.gae_lambda or config.AC_GAE_LAMBDA,
+            rollout_episodes=config.AC_ROLLOUT_EPISODES,
             max_grad_norm=config.AC_MAX_GRAD_NORM,
         )
     elif method == "trpo":
@@ -104,13 +111,28 @@ def _build_agent_config(args) -> dict:
             damping=args.damping or config.TRPO_DAMPING,
             gae_lambda=args.gae_lambda or config.TRPO_GAE_LAMBDA,
             entropy_coef=args.entropy_coef if args.entropy_coef is not None else config.TRPO_ENTROPY_COEF,
+            rollout_episodes=config.TRPO_ROLLOUT_EPISODES,
             max_grad_norm=config.TRPO_MAX_GRAD_NORM,
+        )
+    elif method == "ppo":
+        c = dict(
+            learning_rate=args.learning_rate or config.PPO_POLICY_LR,
+            value_lr=args.value_lr or config.PPO_VALUE_LR,
+            hidden_dims=args.hidden_dims or config.PPO_HIDDEN_DIMS,
+            entropy_coef=args.entropy_coef if args.entropy_coef is not None else config.PPO_ENTROPY_COEF,
+            gae_lambda=args.gae_lambda or config.PPO_GAE_LAMBDA,
+            clip_eps=args.clip_eps or config.PPO_CLIP_EPS,
+            ppo_epochs=args.ppo_epochs or config.PPO_EPOCHS,
+            mini_batch_size=args.mini_batch_size or config.PPO_MINI_BATCH_SIZE,
+            rollout_episodes=config.PPO_ROLLOUT_EPISODES,
+            max_grad_norm=config.PPO_MAX_GRAD_NORM,
         )
     else:
         c = {}
 
     c["gamma"] = args.gamma
     c["max_action"] = args.max_v
+    c["device"] = args.device
     return c
 
 

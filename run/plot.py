@@ -43,6 +43,7 @@ COLORS = {
     "reinforce_baseline": "#3498DB",
     "actor_critic": "#2ECC71",
     "trpo": "#9B59B6",
+    "ppo": "#E67E22",
 }
 
 

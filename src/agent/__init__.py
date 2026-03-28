@@ -6,12 +6,14 @@ from .reinforce import ReinforceAgent
 from .reinforce_baseline import ReinforceBaselineAgent
 from .actor_critic import ActorCriticAgent
 from .trpo import TRPOAgent
+from .ppo import PPOAgent
 
 AGENT_MAP = {
     "reinforce": ReinforceAgent,
     "reinforce_baseline": ReinforceBaselineAgent,
     "actor_critic": ActorCriticAgent,
     "trpo": TRPOAgent,
+    "ppo": PPOAgent,
 }
 
 AGENT_NAMES = list(AGENT_MAP.keys())

@@ -1,5 +1,5 @@
 """
-Train all four algorithms and produce comparison plots + evaluation table.
+Train selected algorithms (default: all) and produce comparison plots + evaluation table.
 
 Usage: python run/compare.py [--num_episodes 3000] [--seed 42]
 """
@@ -41,6 +41,7 @@ ALGO_CONFIGS = {
         hidden_dims=config.AC_HIDDEN_DIMS,
         entropy_coef=config.AC_ENTROPY_COEF,
         gae_lambda=config.AC_GAE_LAMBDA,
+        rollout_episodes=config.AC_ROLLOUT_EPISODES,
         max_grad_norm=config.AC_MAX_GRAD_NORM,
     ),
     "trpo": dict(
@@ -53,7 +54,20 @@ ALGO_CONFIGS = {
         damping=config.TRPO_DAMPING,
         gae_lambda=config.TRPO_GAE_LAMBDA,
         entropy_coef=config.TRPO_ENTROPY_COEF,
+        rollout_episodes=config.TRPO_ROLLOUT_EPISODES,
         max_grad_norm=config.TRPO_MAX_GRAD_NORM,
+    ),
+    "ppo": dict(
+        learning_rate=config.PPO_POLICY_LR,
+        value_lr=config.PPO_VALUE_LR,
+        hidden_dims=config.PPO_HIDDEN_DIMS,
+        entropy_coef=config.PPO_ENTROPY_COEF,
+        gae_lambda=config.PPO_GAE_LAMBDA,
+        clip_eps=config.PPO_CLIP_EPS,
+        ppo_epochs=config.PPO_EPOCHS,
+        mini_batch_size=config.PPO_MINI_BATCH_SIZE,
+        rollout_episodes=config.PPO_ROLLOUT_EPISODES,
+        max_grad_norm=config.PPO_MAX_GRAD_NORM,
     ),
 }
 
@@ -102,6 +116,8 @@ def main():
         max_v=config.MAX_V,
         obstacle_radius=config.OBSTACLE_RADIUS,
         goal_radius=config.GOAL_RADIUS,
+        reward_goal=config.REWARD_GOAL,
+        reward_collision=config.REWARD_COLLISION,
         reward_step=config.REWARD_STEP,
         progress_scale=config.PROGRESS_SCALE,
         spin_penalty=config.SPIN_PENALTY,
@@ -120,7 +136,12 @@ def main():
         obs_dim = env.observation_space.shape[0]
         act_dim = env.action_space.shape[0]
 
-        agent_cfg = {**ALGO_CONFIGS[method], "gamma": config.GAMMA, "max_action": config.MAX_V}
+        agent_cfg = {
+            **ALGO_CONFIGS[method],
+            "gamma": config.GAMMA,
+            "max_action": config.MAX_V,
+            "device": "cpu",
+        }
         agent = create_agent(method, obs_dim, act_dim, agent_cfg)
 
         log_dir = os.path.join(args.log_dir, method)

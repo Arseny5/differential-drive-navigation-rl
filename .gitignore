@@ -1,18 +1,23 @@
 __pycache__/
-*.py[cod]
-*$py.class
-.Python
-.venv/
-venv/
+*.pyc
 *.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.env
-.DS_Store
+.eggs/
+*.egg
+dist/
+build/
 
-# Training / eval outputs (regenerate with run/train.py, run/evaluate.py)
-logs/
-models/
-plots/*.png
-gifs/*.gif
+# Checkpoints (keep only best/final)
+models/*/checkpoint_*.pth
+
+# Logs (JSON histories are large)
+logs/*/training_history.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -34,7 +34,7 @@ def plot_trajectory(
     ax.add_patch(obstacle_border)
 
     ax.set_xlim(-6, 6)
-    ax.set_ylim(-6, 6)
+    ax.set_ylim(-12, 12)
     ax.set_aspect("equal")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -147,7 +147,7 @@ def plot_all_on_one(
     ax.legend(handles=legend_elements, loc="upper left")
 
     ax.set_xlim(-6, 6)
-    ax.set_ylim(-6, 6)
+    ax.set_ylim(-12, 12)
     ax.set_aspect("equal")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
