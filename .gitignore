@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+.DS_Store
+
+# Training / eval outputs (regenerate with run/train.py, run/evaluate.py)
+logs/
+models/
+plots/*.png
+gifs/*.gif
